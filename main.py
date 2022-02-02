@@ -1,7 +1,31 @@
 import numpy as np
 import math
 from scipy.spatial.transform import Rotation as R
+
 import rtde_control, rtde_receive
+def S_half(r):
+    if np.linalg.norm(r) == math.pi and ((r[0] == 0 and r[1]==0 and r[2] < 0) or (r[0]==0 and r[1] < 0) or r[0]<0):
+        return -r
+    else:
+         return r
+
+def RotMatToRotVec(m1):
+    m = np.zeros((3,3))
+    for i in range(3):
+        m[i] = m1[i][0:3]
+    A = (m - np.transpose(m))/2.0
+    rho = np.array([A[2][1], A[0][2], A[1][0]])
+    c = (m[0][0] + m[1][1] + m[2][2] -1 )/2
+    S= np.linalg.norm(rho)
+    I = np.matmul(m, np.transpose(m))
+    v = [I[i][0] + A[i][0] for i in range(len(A))] 
+    u = v/np.linalg.norm(v)
+    r = S_half(u*math.pi)
+    u  = rho/S
+    theta = math.atan2(S, c)
+    r = u * theta
+    return r
+
 
 def RotMat(phi, axis):
     if axis == "x":
@@ -87,8 +111,8 @@ def NormalJointToXYZ(jointArray):
         result_rot = np.matmul(result_rot, rm)
         xyz = np.matmul(xyz, tr)
 
-    r = R.from_matrix([result_rot[i][0:3] for i in range(3)])
-    return np.concatenate([np.matmul(xyz, np.array([0, 0, 0, 1]))[0:3], r.as_rotvec()])
+    rotvec = RotMatToRotVec(result_rot)
+    return np.concatenate([np.matmul(xyz, np.array([0, 0, 0, 1]))[0:3], rotvec])
 
 def main():
     test_Q = [3, 1, 2.12, 3, 1, 3]
